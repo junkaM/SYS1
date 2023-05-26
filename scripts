@@ -1,1 +1,61 @@
+Apache2.config:
 
+<VirtualHost *:80>
+  ServerAdmin admin@{{ item }}
+  ServerName {{ item }}
+  ServerAlias {{ item }}
+  DocumentRoot /var/www/{{ item }}
+  ErrorLog ${APACHE_LOG_DIR}/error.log
+</VirtualHost>
+
+
+host:
+[apache2]
+192.168.0.245
+
+
+index.yml
+
+- name: Installation de Apache2 sur le serveur
+  hosts: apache2
+  remote_user: root
+  vars:
+    domains:
+      - www.hei.school
+      - front.hei.school
+      - back.hei.School
+      - api.hei.school
+
+  tasks:
+    - name: Installation de tous les outils nécessaires
+      apt:
+        name: "{{ item }}"
+        update_cache: yes
+        state: latest
+      with_items:
+        - apache2
+
+    - name: Création des répertoires pour les fichiers HTML
+      command: mkdir /var/www/{{ item }}
+      loop: "{{ domains }}"
+
+    - name: Création des fichiers HTML des docs
+      ansible.builtin.template:
+        src: templates/index.html.j2
+        dest: /var/www/{{ item }}/index.html
+      loop: "{{ domains }}"
+
+    - name:Création du fichier de configuration VirtualHost
+      ansible.builtin.template:
+        src: templates/domain.conf.j2
+        dest: /etc/apache2/sites-available/{{ item }}.conf
+      loop: "{{ domains }}"
+
+    - name: Création des liens symboliques
+      command: ln -s /etc/apache2/sites-available/{{ item }}.conf /etc/apache2/sites-enabled/{{ item }}.conf
+      loop: "{{ domains }}"
+
+    - name:Redémarrez le serveur apache2
+      command: /etc/init.d/apache2 restart
+      
+      
